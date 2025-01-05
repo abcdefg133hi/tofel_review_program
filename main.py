@@ -3,42 +3,53 @@ import sys
 import json
 import random
 from utils import initial_messages
+from rich.console import Console
+from rich.prompt import Prompt
+from rich.table import Table
+
+console = Console()
 
 
 def yes_or_no():
-    status = input("If you think you are correct, type \'y\'. Otherwise, type \'n\'")
+    console.print("[bold green]If you think you are correct, type 'y'. Otherwise, type 'n'[/bold green]")
+    status = input()
     if status == 'y' or status == 'Y':
         return 1
     elif status == 'n' or status == 'N':
         return 0
-    print("The input is neither y or n. Will assume to be \'n\'...")
+    console.print("[bold red]The input is neither y or n.[bold red] Will assume to be \'n\'...")
     return 0
 
 
 
-def prepare_word_pools(path):
-    word_pools = None
+def prepare_words_pool(path):
+    words_pool = None
     try:
         with open(path, 'r') as f:
-            word_pools = json.load(f)
+            words_pool = json.load(f)
     except:
-        word_pools = dict()
-    return word_pools
+        words_pool = dict()
+    return words_pool
 
 def print_words():
-    word_pools = prepare_word_pools("word_pools.json")
-    for word, meaning in word_pools.items():
-        print("------------------------------------------------")
-        print(f"Word: {word}, Meaning: {meaning}")
-    print("------------------------------------------------")
+    words_pool = prepare_words_pool("words_pool.json")
+    table = Table()
+
+    table.add_column("Word", justify="right", style="white", no_wrap=True)
+    table.add_column("Meaning", style="white")
+
+
+    for word, meaning in words_pool.items():
+        table.add_row(word, meaning)
+    console.print(table)
     _ = input("Press Enter to continue ...")
 
 def practice(num_words_per_round, word2meaning=True):
-    word_pools = prepare_word_pools("word_pools.json")
-    num_words_per_round = min(num_words_per_round, len(word_pools))
+    words_pool = prepare_words_pool("words_pool.json")
+    num_words_per_round = min(num_words_per_round, len(words_pool))
     print(f"Number of words practicing in one round is {num_words_per_round}.")
     while True:
-        sampled_words = random.sample(list(word_pools.items()), num_words_per_round)
+        sampled_words = random.sample(list(words_pool.items()), num_words_per_round)
         num_correct_answering = 0
         for word, meaning in sampled_words:
             if word2meaning:
@@ -63,22 +74,22 @@ def practice(num_words_per_round, word2meaning=True):
             break
 
 def add_words(word, meaning):
-    word_pools = prepare_word_pools("word_pools.json")
-    word_pools[word] = meaning
-    with open("word_pools.json", 'w') as f:
-        json.dump(word_pools, f)
+    words_pool = prepare_words_pool("words_pool.json")
+    words_pool[word] = meaning
+    with open("words_pool.json", 'w') as f:
+        json.dump(words_pool, f)
 
-def clear_word_pools():
-    with open("word_pools.json", 'w') as f:
+def clear_words_pool():
+    with open("words_pool.json", 'w') as f:
         f.write("")
     _ = input("Successfully Clear all the words. Press Enter to continue ...")
 
 def remove(target_word):
-    word_pools = prepare_word_pools("word_pools.json")
-    if target_word in word_pools.keys():
-        _ =  word_pools.pop(target_word)
-        with open("word_pools.json", 'w') as f:
-            json.dump(word_pools, f)
+    words_pool = prepare_words_pool("words_pool.json")
+    if target_word in words_pool.keys():
+        _ =  words_pool.pop(target_word)
+        with open("words_pool.json", 'w') as f:
+            json.dump(words_pool, f)
         print(f"Successfully remove {target_word} ^_^")
     else:
         print(f"No such word, {target_word} , in the word pools _^_ ...")
@@ -89,12 +100,16 @@ _ADD_WORDS = "a"
 _PRACTICE = "p"
 _PRINT_WORDS = "print"
 _REMOVE_WORDS = "r"
-_CLEAR_WORD_POOLS = "c"
+_CLEAR_WORDS_POOL = "c"
 
 def main():
-    print("Welcome to tofel practice program developed by Mars.")
+    if not os.path.isfile("./words_pool.json"):
+        os.system("touch words_pool.json")
+    console.print("[bold dark_slate_gray3]Welcome to tofel practice program developed by Mars.[bold dark_slate_gray3]")
     while 1:
-        print(initial_messages)
+        #console.rule("")
+        initial_messages()
+        #console.rule("")
         mode = input("Please type the mode:")
         if mode == _EXIT:
             print("Start to exit ... Thank you for your usage ^_^")
@@ -113,8 +128,8 @@ def main():
             practice(num_words_per_round, word2meaning=True)
         elif mode == _PRINT_WORDS:
             print_words()
-        elif mode == _CLEAR_WORD_POOLS:
-            clear_word_pools()
+        elif mode == _CLEAR_WORDS_POOL:
+            clear_words_pool()
         elif mode == _REMOVE_WORDS:
             target_word = input("Type the target removed word. For example, apple:")
             remove(target_word)
