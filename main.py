@@ -45,7 +45,12 @@ def print_words():
     _ = input("Press Enter to continue ...")
 
 def practice(num_words_per_round, word2meaning=True):
+    os.system("clear")
     words_pool = prepare_words_pool("words_pool.json")
+    if len(words_pool) == 0:
+        console.print("There is no word in the words pool")
+        _ = input("Press Enter to continue ...")
+        return
     num_words_per_round = min(num_words_per_round, len(words_pool))
     print(f"Number of words practicing in one round is {num_words_per_round}.")
     while True:
@@ -102,6 +107,7 @@ def add_words(word, meaning):
     words_pool[word] = meaning
     with open("words_pool.json", 'w') as f:
         json.dump(words_pool, f)
+    _ = input(f"Successfully add the word, {word}. Press Enter to continue ...")
 
 def clear_words_pool():
     with open("words_pool.json", 'w') as f:
@@ -198,7 +204,8 @@ def main():
             os.system(f"cat practice_records/{hash_table[index]}")
             _ = input("Press Enter to continue...")
         else:
-            print("No such mode {mode}... _^_")
+            print(f"No such mode {mode}... _^_")
+            _ = input("Press Enter to continue...")
         os.system("clear")
 
 if __name__ == "__main__":
