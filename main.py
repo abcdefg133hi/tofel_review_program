@@ -6,13 +6,13 @@ from utils import initial_messages
 from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
+import datetime
 
 console = Console()
 
 
 def yes_or_no():
-    console.print("[bold green]If you think you are correct, type 'y'. Otherwise, type 'n'[/bold green]")
-    status = input()
+    status = Prompt.ask("[bold green]If you think you are correct, type 'y'. Otherwise, type 'n'[/bold green]")
     if status == 'y' or status == 'Y':
         return 1
     elif status == 'n' or status == 'N':
@@ -51,20 +51,44 @@ def practice(num_words_per_round, word2meaning=True):
     while True:
         sampled_words = random.sample(list(words_pool.items()), num_words_per_round)
         num_correct_answering = 0
+        table = Table()
+        table.add_column("Word", justify="right", style="white", no_wrap=True)
+        table.add_column("Meaning", style="white")
+        table.add_column("Your Answer", style="white")
+        table.add_column("Correct or not", style="white")
         for word, meaning in sampled_words:
             if word2meaning:
-                print("--------------------------------------------")
-                _ = input(f"Word: {word}.\nPress Enter to get the meaning")
-                print(f"The meaning is: {meaning}.")
+                os.system("clear")
+                console.log(f"[bold red]Word: {word}.[/bold red]")
+                answer = input("Type your answer here:")
+                console.log(f"[bold blue]The true meaning is: {meaning}.[/bold blue]")
                 _ = input("Press Enter to continue ...")
-                num_correct_answering += yes_or_no()
+                if_correct = yes_or_no()
+                num_correct_answering += if_correct
+                table.add_row(word, meaning, answer, str(if_correct))
             else:
                 raise NotImplementedError("Not implemenetd")
-        print("--------------------------------------------")
-        print(f"Correct rate for this round: {num_correct_answering} / {num_words_per_round} = {num_correct_answering / num_words_per_round}")
+        console.print(table)
+        console.log(f"Correct rate for this round: {num_correct_answering} / {num_words_per_round} = {num_correct_answering / num_words_per_round}")
 
-
-        status = input("Continue to practice? [y/n]")
+        if_store = Prompt.ask("Store the practice record? (y/n)")
+        if if_store == "y" or if_store == "Y":
+            time_now = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            with open(f"practice_records/record_{time_now}.txt", 'w') as f:
+                _file_console = Console(file=f)
+                _file_console.print(table)
+                _file_console.log(f"Correct rate for this round: {num_correct_answering} / {num_words_per_round} = {num_correct_answering / num_words_per_round}")
+            with open("practice_records/record_hash.json", 'r') as fin:
+                hash_table = json.load(fin)
+            try:
+                current_enum = hash_table["enum"][-1] + 1
+            except:
+                current_enum = 1
+            hash_table["enum"].append(current_enum)
+            hash_table[str(current_enum)] = f"record_{time_now}.txt"
+            with open("practice_records/record_hash.json", 'w') as fout:
+                json.dump(hash_table, fout)
+        status = Prompt.ask("Continue to practice? (y/n)")
         if status == "n" or status == "N":
             break
         elif status == "y" or status == "Y":
@@ -101,11 +125,18 @@ _PRACTICE = "p"
 _PRINT_WORDS = "print"
 _REMOVE_WORDS = "r"
 _CLEAR_WORDS_POOL = "c"
+_CLEAR_RECORDS = "clear_record"
+_PRINT_RECORD = "print_record"
 
 def main():
     if not os.path.isfile("./words_pool.json"):
         os.system("touch words_pool.json")
     console.print("[bold dark_slate_gray3]Welcome to tofel practice program developed by Mars.[bold dark_slate_gray3]")
+    if not os.path.isdir("practice_records"):
+        os.makedirs("practice_records", exist_ok=False)
+        hash_table = dict(); hash_table["enum"] = []
+        with open("practice_records/record_hash.json", 'w') as f:
+            json.dump(hash_table, f)
     while 1:
         #console.rule("")
         initial_messages()
@@ -133,8 +164,42 @@ def main():
         elif mode == _REMOVE_WORDS:
             target_word = input("Type the target removed word. For example, apple:")
             remove(target_word)
+        elif mode == _CLEAR_RECORDS:
+            try:
+                os.system("rm -rf practice_records")
+            except:
+                pass
+            os.makedirs("practice_records", exist_ok=False)
+            hash_table = dict(); hash_table["enum"] = []
+            with open("practice_records/record_hash.json", 'w') as f:
+                json.dump(hash_table, f)
+            console.print("Successfully clear all the records...")
+            _ = input("Press Enter to continue...")
+        elif mode == _PRINT_RECORD:
+            hash_table = None
+            with open("practice_records/record_hash.json", 'r') as f:
+                hash_table = json.load(f)
+            table = Table(title="Here is the current record files table...")
+            table.add_column("Index", justify="right", style="white", no_wrap=True)
+            table.add_column("Record_Name", style="white")
+            for key, values in hash_table.items():
+                if key == "enum":
+                    continue
+                table.add_row(key, values)
+            console.print(table)
+            index = Prompt.ask("Please type the file index that you want to query")
+            if index not in hash_table.keys():
+                console.log("No such index... Will terminate and the print record program ...")
+                _ = input("Press Enter to continue...")
+                os.system("clear")
+                continue
+            os.system("clear")
+            print(hash_table[index])
+            os.system(f"cat practice_records/{hash_table[index]}")
+            _ = input("Press Enter to continue...")
         else:
             print("No such mode {mode}... _^_")
+        os.system("clear")
 
 if __name__ == "__main__":
     main()

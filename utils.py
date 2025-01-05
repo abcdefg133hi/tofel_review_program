@@ -15,6 +15,8 @@ def initial_messages():
     table.add_row("p", "Practice words")
     table.add_row("r", "Remove word from the word pools")
     table.add_row("c", "Clear all the words in the word pools")
+    table.add_row("clear_record", "Clear all the records")
+    table.add_row("print_record", "Print your practice record")
     table.add_row("print", "Print all the words in the word pools")
 
     # Display the table
