@@ -6,10 +6,13 @@ from utils import initial_messages
 from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
+from rich.live import Live
 import datetime
+import signal
+import time
 
 console = Console()
-
+_should_speak = False
 
 def yes_or_no():
     status = Prompt.ask("[bold green]If you think you are correct, type 'y'. Otherwise, type 'n'[/bold green]")
@@ -20,6 +23,68 @@ def yes_or_no():
     console.print("[bold red]The input is neither y or n.[bold red] Will assume to be \'n\'...")
     return 0
 
+
+
+def speak(problem):
+    problem_chunk = problem.split(" ")
+    current_problem = "[bold green]:clock1: Problem: "
+    with Live(console=console, refresh_per_second=len(current_problem)) as live:
+        for chunk in problem_chunk:
+            current_problem += chunk + " "
+            live.update(current_problem)
+            time.sleep(0.2)
+    seconds = 15
+    with Live(console=console, refresh_per_second=15) as live:
+        while seconds >= 0:
+            table = Table()
+            table.add_column("Time Left", justify="center", style="bold red", no_wrap=True)
+            table.add_row(f"{seconds} seconds")
+            live.update(table)
+            time.sleep(1)
+            seconds -= 1
+
+    console.print("[bold green]Time's up! Please start your answer ...")
+    seconds = 45
+    with Live(console=console, refresh_per_second=45) as live:
+        while seconds >= 0:
+            table = Table()
+            table.add_column("Time Left", justify="center", style="bold red", no_wrap=True)
+            table.add_row(f"{seconds} seconds")
+            live.update(table)
+            time.sleep(1)
+            seconds -= 1
+    console.print("[bold green]Time's up! :tada:")
+
+
+def speaking():
+    with open("speaking/problems.json", 'r') as f:
+        problem_corpus = json.load(f)
+    while 1:
+        os.system("clear")
+        problem = Prompt.ask("Type the problem here. (\"None\" for using the problem from corpus)")
+        probably_save = True
+        if problem == "None" and len(problem_corpus) > 0:
+            randno = random.randint(0,len(problem_corpus)-1)
+            problem = problem_corpus[randno]
+            probably_save = False
+        elif problem == "None":
+            console.log("Error! No problem in the corpus. Please type the problem ...")
+            _ = input("Press Enter to continue ...")
+            continue
+        speak(problem)
+        if probably_save:
+            save_or_not = Prompt.ask("Do you want to save the problem into the corpus? (y/n)")
+            if save_or_not == "Y" or save_or_not == "y":
+                problem_corpus.append(problem)
+                console.print("Successfully save the problem into the corpus. :tada:")
+            else:
+                console.print("Not saving the problem into the corpus.")
+        status = Prompt.ask("Again or not. (y/n)")
+        if status != "y" and status != "Y":
+            with open("speaking/problems.json", 'w') as f:
+                json.dump(problem_corpus, f)
+            _ = input("Will back to the main page. Press Enter to continue ...")
+            return
 
 
 def prepare_words_pool(path):
@@ -133,10 +198,21 @@ _REMOVE_WORDS = "r"
 _CLEAR_WORDS_POOL = "c"
 _CLEAR_RECORDS = "clear_record"
 _PRINT_RECORD = "print_record"
+_SPEAKING = "speaking"
+_SPEAKING_ADD = "speaking_add"
+_SPEAKING_CLEAR = "speaking_clear"
+_SPEAKING_PRINT = "speaking_print"
+_SPEAKING_REMOVE = "speaking_remove"
 
 def main():
+    os.system("clear")
     if not os.path.isfile("./words_pool.json"):
         os.system("touch words_pool.json")
+    if not os.path.isdir("speaking"):
+        os.makedirs("speaking", exist_ok=False)
+    if not os.path.isfile("speaking/problems.json"):
+        with open("speaking/problems.json", 'w') as f:
+            json.dump([], f)
     console.print("[bold dark_slate_gray3]Welcome to tofel practice program developed by Mars.[bold dark_slate_gray3]")
     if not os.path.isdir("practice_records"):
         os.makedirs("practice_records", exist_ok=False)
@@ -202,6 +278,56 @@ def main():
             os.system("clear")
             print(hash_table[index])
             os.system(f"cat practice_records/{hash_table[index]}")
+            _ = input("Press Enter to continue...")
+        elif mode == _SPEAKING:
+            speaking()
+        elif mode == _SPEAKING_ADD:
+            problem = Prompt.ask("Type the problem here")
+            with open("speaking/problems.json", 'r') as f:
+                problem_corpus = json.load(f)
+            problem_corpus.append(problem)
+            with open("speaking/problems.json", 'w') as f:
+                json.dump(problem_corpus, f)
+            console.print(f"Successfully adding problem, {problem}, into the corpus.")
+            _ = input("Press Enter to continue...")
+        elif mode == _SPEAKING_CLEAR:
+            with open("speaking/problems.json", 'w') as f:
+                json.dump([], f)
+            console.print("Successfully clearing all the problems in the corpus.")
+            _ = input("Press Enter to continue...")
+        elif mode == _SPEAKING_PRINT:
+            with open("speaking/problems.json", 'r') as f:
+                problem_corpus = json.load(f)
+            table = Table()
+            table.add_column("ID", justify="right", style="white", no_wrap=True)
+            table.add_column("Problem", style="white")
+            for idx, problem in enumerate(problem_corpus):
+                table.add_row(str(idx+1), problem)
+            console.print(table)
+            _ = input("Press Enter to continue...")
+        elif mode == _SPEAKING_REMOVE:
+            with open("speaking/problems.json", 'r') as f:
+                problem_corpus = json.load(f)
+            table = Table()
+            table.add_column("ID", justify="right", style="white", no_wrap=True)
+            table.add_column("Problem", style="white")
+            for idx, problem in enumerate(problem_corpus):
+                table.add_row(str(idx+1), problem)
+            console.print(table)
+            _id = Prompt.ask("Please input the ID that you want to remove")
+            try:
+                if int(_id) == len(problem_corpus):
+                    problem_corpus.pop()
+                elif int(_id) <= 0:
+                    console.log("Your input is not a valid ID. Will directly return back to main ...")
+                else:
+                    problem_corpus[int(_id) - 1] = problem_corpus[-1]
+                    problem_corpus.pop()
+            except:
+                console.log("Your input is not a valid ID. Will directly return back to main ...")
+            with open("speaking/problems.json", 'w') as f:
+                json.dump(problem_corpus, f)
+            console.print(f"Successfully removing the problem from the corpus.")
             _ = input("Press Enter to continue...")
         else:
             print(f"No such mode {mode}... _^_")
