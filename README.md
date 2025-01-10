@@ -4,6 +4,7 @@
 
 ```
 pip install rich
+pip install pyttsx3
 ```
 
 ## Run

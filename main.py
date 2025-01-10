@@ -10,9 +10,18 @@ from rich.live import Live
 import datetime
 import signal
 import time
+import atexit
+import pyttsx3
 
+
+def release_lock():
+    os.system("rm -f .tofel.lock")
+
+
+atexit.register(release_lock)
 console = Console()
 _should_speak = False
+engine = pyttsx3.init()
 
 def yes_or_no():
     status = Prompt.ask("[bold green]If you think you are correct, type 'y'. Otherwise, type 'n'[/bold green]")
@@ -26,6 +35,14 @@ def yes_or_no():
 
 
 def speak(problem):
+    console.print(f"[bold green]:clock1: Problem: {problem}")
+    engine.setProperty('rate', 150)
+    voices = engine.getProperty('voices')
+    voice_from = 0
+    engine.setProperty('voice', voices[voice_from].id)
+    engine.say(problem)
+    engine.runAndWait()
+    """
     problem_chunk = problem.split(" ")
     current_problem = "[bold green]:clock1: Problem: "
     with Live(console=console, refresh_per_second=len(current_problem)) as live:
@@ -33,6 +50,7 @@ def speak(problem):
             current_problem += chunk + " "
             live.update(current_problem)
             time.sleep(0.2)
+    """
     seconds = 15
     with Live(console=console, refresh_per_second=15) as live:
         while seconds >= 0:
@@ -43,6 +61,8 @@ def speak(problem):
             time.sleep(1)
             seconds -= 1
 
+    engine.say("Time's up! Please start your answer.")
+    engine.runAndWait()
     console.print("[bold green]Time's up! Please start your answer ...")
     seconds = 45
     with Live(console=console, refresh_per_second=45) as live:
@@ -109,9 +129,13 @@ def print_words():
     console.print(table)
     _ = input("Press Enter to continue ...")
 
-def practice(num_words_per_round, word2meaning=True):
+def practice(num_words_per_round, sound=False):
     os.system("clear")
     words_pool = prepare_words_pool("words_pool.json")
+    if sound:
+        engine.setProperty('rate', 200)
+        voices = engine.getProperty('voices')
+
     if len(words_pool) == 0:
         console.print("There is no word in the words pool")
         _ = input("Press Enter to continue ...")
@@ -127,24 +151,38 @@ def practice(num_words_per_round, word2meaning=True):
         table.add_column("Your Answer", style="white")
         table.add_column("Correct or not", style="white")
         for word, meaning in sampled_words:
-            if word2meaning:
-                os.system("clear")
-                console.log(f"[bold red]Word: {word}.[/bold red]")
-                answer = input("Type your answer here:")
-                console.log(f"[bold blue]The true meaning is: {meaning}.[/bold blue]")
-                _ = input("Press Enter to continue ...")
-                if_correct = yes_or_no()
-                num_correct_answering += if_correct
-                table.add_row(word, meaning, answer, str(if_correct))
+            os.system("clear")
+            if sound:
+                console.print("Carefully listen :wink:")
+                #voice_from = random.randint(0,len(voices))
+                #engine.setProperty('voice', voices[voice_from].id)
+                engine.say(word)
+                engine.runAndWait()
             else:
-                raise NotImplementedError("Not implemenetd")
+                console.log(f"[bold red]Word: {word}.[/bold red]")
+            if sound:
+                answer = Prompt.ask("Type the word and your answer here")
+            else:
+                answer = Prompt.ask("Type your answer here")
+            if sound:
+                console.log(f"[bold red]The word is {word}.[/bold red]:wink:[bold blue]The true meaning is: {meaning}.[/bold blue]")
+            else:
+                console.log(f"[bold blue]The true meaning is: {meaning}.[/bold blue]")
+            _ = input("Press Enter to continue ...")
+            if_correct = yes_or_no()
+            num_correct_answering += if_correct
+            table.add_row(word, meaning, answer, str(if_correct))
         console.print(table)
         console.log(f"Correct rate for this round: {num_correct_answering} / {num_words_per_round} = {num_correct_answering / num_words_per_round}")
 
         if_store = Prompt.ask("Store the practice record? (y/n)")
         if if_store == "y" or if_store == "Y":
             time_now = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-            with open(f"practice_records/record_{time_now}.txt", 'w') as f:
+            if sound:
+                file_name = f"practice_records/record_with_listening_{time_now}.txt"
+            else:
+                file_name = f"practice_records/record_{time_now}.txt"
+            with open(file_name, 'w') as f:
                 _file_console = Console(file=f)
                 _file_console.print(table)
                 _file_console.log(f"Correct rate for this round: {num_correct_answering} / {num_words_per_round} = {num_correct_answering / num_words_per_round}")
@@ -155,7 +193,10 @@ def practice(num_words_per_round, word2meaning=True):
             except:
                 current_enum = 1
             hash_table["enum"].append(current_enum)
-            hash_table[str(current_enum)] = f"record_{time_now}.txt"
+            if sound:
+                hash_table[str(current_enum)] = f"record_with_listening_{time_now}.txt"
+            else:
+                hash_table[str(current_enum)] = f"record_{time_now}.txt"
             with open("practice_records/record_hash.json", 'w') as fout:
                 json.dump(hash_table, fout)
         status = Prompt.ask("Continue to practice? (y/n)")
@@ -193,6 +234,7 @@ def remove(target_word):
 _EXIT = "q"
 _ADD_WORDS = "a"
 _PRACTICE = "p"
+_PRACTICE_WITH_SOUND = "ps"
 _PRINT_WORDS = "print"
 _REMOVE_WORDS = "r"
 _CLEAR_WORDS_POOL = "c"
@@ -203,6 +245,15 @@ _SPEAKING_ADD = "speaking_add"
 _SPEAKING_CLEAR = "speaking_clear"
 _SPEAKING_PRINT = "speaking_print"
 _SPEAKING_REMOVE = "speaking_remove"
+
+def check_lock():
+    try:
+        with open('.tofel.lock', 'x') as file:
+            pass
+    except FileExistsError:
+        print("Error: You have another process running the program. You can only run the program once at a time.", file=sys.stderr)
+        sys.exit(1)
+
 
 def main():
     os.system("clear")
@@ -238,7 +289,10 @@ def main():
             print(f"Successfully adding word: {word} and meaning {meaning} into word pools ^_^")
         elif mode == _PRACTICE:
             num_words_per_round = int(input("Type the number of words you want to practice per round. For example, 10:"))
-            practice(num_words_per_round, word2meaning=True)
+            practice(num_words_per_round)
+        elif mode == _PRACTICE_WITH_SOUND:
+            num_words_per_round = int(input("Type the number of words you want to practice per round. For example, 10:"))
+            practice(num_words_per_round, sound=True)
         elif mode == _PRINT_WORDS:
             print_words()
         elif mode == _CLEAR_WORDS_POOL:
@@ -335,4 +389,6 @@ def main():
         os.system("clear")
 
 if __name__ == "__main__":
+    check_lock()
     main()
+    release_lock()

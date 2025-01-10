@@ -13,6 +13,7 @@ def initial_messages():
     table.add_row("q", "Quit the program.")
     table.add_row("a", "Add word to the word pools.")
     table.add_row("p", "Practice words")
+    table.add_row("ps", "Practice words with listening")
     table.add_row("r", "Remove word from the word pools")
     table.add_row("c", "Clear all the words in the word pools")
     table.add_row("clear_record", "Clear all the records")
