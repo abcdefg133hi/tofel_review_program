@@ -12,6 +12,10 @@ import signal
 import time
 import atexit
 import pyttsx3
+import math
+
+
+RED = """[bold red]{}[/bold red]"""
 
 
 def release_lock():
@@ -140,10 +144,19 @@ def practice(num_words_per_round, sound=False):
         console.print("There is no word in the words pool")
         _ = input("Press Enter to continue ...")
         return
+    with open(".setting", 'r') as f:
+        setting = json.load(f)
+    practice_rate = int(setting["practice_rate"])
+    _idx = 1
+    word_weights = []
+    for i in range(len(words_pool)):
+        if i / len(words_pool) > _idx / practice_rate:
+            _idx += 1
+        word_weights.append(_idx)
     num_words_per_round = min(num_words_per_round, len(words_pool))
     print(f"Number of words practicing in one round is {num_words_per_round}.")
     while True:
-        sampled_words = random.sample(list(words_pool.items()), num_words_per_round)
+        sampled_words = random.choices(list(words_pool.items()), weights=word_weights, k=num_words_per_round)
         num_correct_answering = 0
         table = Table()
         table.add_column("Word", justify="right", style="white", no_wrap=True)
@@ -161,17 +174,24 @@ def practice(num_words_per_round, sound=False):
             else:
                 console.log(f"[bold red]Word: {word}.[/bold red]")
             if sound:
-                answer = Prompt.ask("Type the word and your answer here")
+                answer = Prompt.ask("Type the word and your answer here. eg: apple;蘋果")
+                if answer.split(";")[0] == word:
+                    console.log("[bold white]You spell the word correctly. :1st_place_medal:")
+                else:
+                    console.log("[bold red]You spell the word wrong ... _^_")
             else:
                 answer = Prompt.ask("Type your answer here")
             if sound:
-                console.log(f"[bold red]The word is {word}.[/bold red]:wink:[bold blue]The true meaning is: {meaning}.[/bold blue]")
+                console.log(f"[bold blue]The word is {word}.[/bold blue]:wink:[bold blue]The true meaning is: {meaning}.[/bold blue]")
             else:
                 console.log(f"[bold blue]The true meaning is: {meaning}.[/bold blue]")
             _ = input("Press Enter to continue ...")
             if_correct = yes_or_no()
             num_correct_answering += if_correct
-            table.add_row(word, meaning, answer, str(if_correct))
+            if if_correct:
+                table.add_row(word, meaning, answer, str(if_correct))
+            else:
+                table.add_row(RED.format(word), RED.format(meaning), RED.format(answer), RED.format(str(if_correct)))
         console.print(table)
         console.log(f"Correct rate for this round: {num_correct_answering} / {num_words_per_round} = {num_correct_answering / num_words_per_round}")
 
@@ -245,6 +265,7 @@ _SPEAKING_ADD = "speaking_add"
 _SPEAKING_CLEAR = "speaking_clear"
 _SPEAKING_PRINT = "speaking_print"
 _SPEAKING_REMOVE = "speaking_remove"
+_SETTING = "set"
 
 def check_lock():
     try:
@@ -264,6 +285,11 @@ def main():
     if not os.path.isfile("speaking/problems.json"):
         with open("speaking/problems.json", 'w') as f:
             json.dump([], f)
+    if not os.path.isfile(".setting"):
+        with open(".setting", 'w') as f:
+            json.dump({
+            "practice_rate": 3,
+                }, f)
     console.print("[bold dark_slate_gray3]Welcome to tofel practice program developed by Mars.[bold dark_slate_gray3]")
     if not os.path.isdir("practice_records"):
         os.makedirs("practice_records", exist_ok=False)
@@ -282,8 +308,9 @@ def main():
             word_meaning_pair = input("Type your input word. The format should be [word;meaning]. For example, apple;蘋果:")
             word_meaning_pair = word_meaning_pair.split(";")
             if len(word_meaning_pair) != 2:
-                print("Your input is in the wrong format. The program would terminate ...", file=sys.stderr)
-                sys.exit(1)
+                _ = input("Your input is in the wrong format. Press Enter to continue ...")
+                os.system("clear")
+                continue
             word, meaning = word_meaning_pair[0], word_meaning_pair[1]
             add_words(word, meaning)
             print(f"Successfully adding word: {word} and meaning {meaning} into word pools ^_^")
@@ -382,6 +409,36 @@ def main():
             with open("speaking/problems.json", 'w') as f:
                 json.dump(problem_corpus, f)
             console.print(f"Successfully removing the problem from the corpus.")
+            _ = input("Press Enter to continue...")
+        elif mode == _SETTING:
+            with open(".setting", 'r') as f:
+                setting = json.load(f)
+            table = Table()
+            for key in setting.keys():
+                if key == "practice_rate":
+                    key += "\n(The total level of practicing.)"
+                table.add_column(key, style="white")
+            #for value in setting.values():
+            table.add_row(*[str(val) for val in setting.values()])
+            console.print(table)
+            answer = Prompt.ask("Which setting do you want to change? And change to what value? (For example: practice_rate;10) Enter for no changes and go back to the main page")
+            if answer == "":
+                os.system("clear")
+                continue
+            answer = answer.split(";")
+            if answer[0] == "practice_rate":
+                try:
+                    if int(answer[1]) > 0:
+                        setting[answer[0]] = answer[1];
+                        with open(".setting", 'w') as f:
+                            json.dump(setting, f, indent=4)
+                        console.print("Successfully update the setting")
+                    else:
+                        console.print(f"Error: {answer[1]} is an invalid value...")
+                except:
+                    console.print(f"Error: {answer[1]} is an invalid value...")
+            else:
+                console.print(f"Error: {answer[0]} is an invalid key...")
             _ = input("Press Enter to continue...")
         else:
             print(f"No such mode {mode}... _^_")

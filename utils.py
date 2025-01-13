@@ -24,6 +24,7 @@ def initial_messages():
     table.add_row("speaking_clear", "Clear all the speaking problems into the corpus")
     table.add_row("speaking_print", "Print all the speaking problems from the corpus")
     table.add_row("speaking_remove", "Remove one specific speaking problem from the corpus")
+    table.add_row("set", "Setting...")
 
     # Display the table
     console.print(table)
