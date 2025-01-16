@@ -14,8 +14,28 @@ import atexit
 import pyttsx3
 import math
 
-
+# MACRO
 RED = """[bold red]{}[/bold red]"""
+_EXIT = "q"
+_ADD_WORDS = "a"
+_PRACTICE = "p"
+_PRACTICE_WITH_SOUND = "ps"
+_PRINT_WORDS = "print"
+_REMOVE_WORDS = "r"
+_CLEAR_WORDS_POOL = "c"
+_CLEAR_RECORDS = "clear_record"
+_PRINT_RECORD = "print_record"
+_SPEAKING = "speaking"
+_SPEAKING_ADD = "speaking_add"
+_SPEAKING_CLEAR = "speaking_clear"
+_SPEAKING_PRINT = "speaking_print"
+_SPEAKING_REMOVE = "speaking_remove"
+_SETTING = "set"
+_PHARSES_ADD = "pa"
+_PHARSES_PRACTICE = "pp"
+_REMOVE_PHARSES = "pr"
+_CLEAR_PHARSES_POOL = "pc"
+_PRINT_PHARSES = "pprint"
 
 
 def release_lock():
@@ -120,6 +140,15 @@ def prepare_words_pool(path):
         words_pool = dict()
     return words_pool
 
+def prepare_pharses_pool(path):
+    pharses_pool = None
+    try:
+        with open(path, 'r') as f:
+            pharses_pool = json.load(f)
+    except:
+        pharses_pool = dict()
+    return pharses_pool
+
 def print_words():
     words_pool = prepare_words_pool("words_pool.json")
     table = Table()
@@ -130,6 +159,19 @@ def print_words():
 
     for word, meaning in words_pool.items():
         table.add_row(word, meaning)
+    console.print(table)
+    _ = input("Press Enter to continue ...")
+
+def print_pharses():
+    pharses_pool = prepare_pharses_pool("pharses_pool.json")
+    table = Table()
+
+    table.add_column("Pharse", justify="right", style="white", no_wrap=True)
+    table.add_column("Meaning", style="white")
+
+
+    for pharse, meaning in pharses_pool.items():
+        table.add_row(pharse, meaning)
     console.print(table)
     _ = input("Press Enter to continue ...")
 
@@ -228,6 +270,74 @@ def practice(num_words_per_round, sound=False):
             print(f"No such status {status}, will assume to stop ...")
             break
 
+def pharses_practice(num_pharses_per_round):
+    os.system("clear")
+    pharses_pool = prepare_pharses_pool("pharses_pool.json")
+
+    if len(pharses_pool) == 0:
+        console.print("There is no pharse in the pharses pool")
+        _ = input("Press Enter to continue ...")
+        return
+    print(f"Number of pharses practicing in one round is {num_pharses_per_round}.")
+    while True:
+        sampled_pharses = random.choices(list(pharses_pool.items()), k=num_pharses_per_round)
+        num_correct_answering = 0
+        table = Table()
+        table.add_column("Meaning", style="white", justify="right", no_wrap=True)
+        table.add_column("Pharse", style="white")
+        table.add_column("Your Answer", style="white")
+        table.add_column("Correct or not", style="white")
+        for pharse, meaning in sampled_pharses:
+            os.system("clear")
+            console.log(f"[bold red]Meaning: {meaning}.[/bold red]")
+            answer = Prompt.ask("Type the corresponding pharse here")
+            console.log(f"[bold blue]The target pharse is: {pharse}.[/bold blue]")
+            _ = input("Press Enter to continue ...")
+            if_correct = yes_or_no()
+            num_correct_answering += if_correct
+            if if_correct:
+                table.add_row(meaning, pharse, answer, str(if_correct))
+            else:
+                table.add_row(RED.format(meaning), RED.format(pharse), RED.format(answer), RED.format(str(if_correct)))
+        console.print(table)
+        console.log(f"Correct rate for this round: {num_correct_answering} / {num_pharses_per_round} = {num_correct_answering / num_pharses_per_round}")
+
+        if_store = Prompt.ask("Store the practice record? (y/n)")
+        if if_store == "y" or if_store == "Y":
+            console.log("[bold red] Very sorry _^_. The recording of pharses practice result has not been implemented yet.")
+            _ = input("Press Enter to continue ...")
+            """
+            time_now = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            if sound:
+                file_name = f"practice_records/record_with_listening_{time_now}.txt"
+            else:
+                file_name = f"practice_records/record_{time_now}.txt"
+            with open(file_name, 'w') as f:
+                _file_console = Console(file=f)
+                _file_console.print(table)
+                _file_console.log(f"Correct rate for this round: {num_correct_answering} / {num_words_per_round} = {num_correct_answering / num_words_per_round}")
+            with open("practice_records/record_hash.json", 'r') as fin:
+                hash_table = json.load(fin)
+            try:
+                current_enum = hash_table["enum"][-1] + 1
+            except:
+                current_enum = 1
+            hash_table["enum"].append(current_enum)
+            if sound:
+                hash_table[str(current_enum)] = f"record_with_listening_{time_now}.txt"
+            else:
+                hash_table[str(current_enum)] = f"record_{time_now}.txt"
+            with open("practice_records/record_hash.json", 'w') as fout:
+                json.dump(hash_table, fout)
+            """
+        status = Prompt.ask("Continue to practice? (y/n)")
+        if status == "n" or status == "N":
+            break
+        elif status == "y" or status == "Y":
+            continue
+        else:
+            print(f"No such status {status}, will assume to stop ...")
+            break
 def add_words(word, meaning):
     words_pool = prepare_words_pool("words_pool.json")
     words_pool[word] = meaning
@@ -235,10 +345,21 @@ def add_words(word, meaning):
         json.dump(words_pool, f)
     _ = input(f"Successfully add the word, {word}. Press Enter to continue ...")
 
+def add_pharses(pharse, meaning):
+    pharses_pool = prepare_pharses_pool("pharses_pool.json")
+    pharses_pool[pharse] = meaning
+    with open("pharses_pool.json", 'w') as f:
+        json.dump(pharses_pool, f)
+
 def clear_words_pool():
     with open("words_pool.json", 'w') as f:
         f.write("")
     _ = input("Successfully Clear all the words. Press Enter to continue ...")
+
+def clear_pharses_pool():
+    with open("pharses_pool.json", 'w') as f:
+        f.write("")
+    _ = input("Successfully Clear all the pharses. Press Enter to continue ...")
 
 def remove(target_word):
     words_pool = prepare_words_pool("words_pool.json")
@@ -251,21 +372,16 @@ def remove(target_word):
         print(f"No such word, {target_word} , in the word pools _^_ ...")
     _ = input("Press Enter to continue ...")
 
-_EXIT = "q"
-_ADD_WORDS = "a"
-_PRACTICE = "p"
-_PRACTICE_WITH_SOUND = "ps"
-_PRINT_WORDS = "print"
-_REMOVE_WORDS = "r"
-_CLEAR_WORDS_POOL = "c"
-_CLEAR_RECORDS = "clear_record"
-_PRINT_RECORD = "print_record"
-_SPEAKING = "speaking"
-_SPEAKING_ADD = "speaking_add"
-_SPEAKING_CLEAR = "speaking_clear"
-_SPEAKING_PRINT = "speaking_print"
-_SPEAKING_REMOVE = "speaking_remove"
-_SETTING = "set"
+def pharse_remove(target_pharse):
+    pharses_pool = prepare_pharses_pool("pharses_pool.json")
+    if target_pharse in pharses_pool.keys():
+        _ =  pharses_pool.pop(target_pharse)
+        with open("pharses_pool.json", 'w') as f:
+            json.dump(pharses_pool, f)
+        print(f"Successfully remove {target_pharse} ^_^")
+    else:
+        print(f"No such pharse, {target_pharse} , in the pharses pools _^_ ...")
+    _ = input("Press Enter to continue ...")
 
 def check_lock():
     try:
@@ -275,27 +391,40 @@ def check_lock():
         print("Error: You have another process running the program. You can only run the program once at a time.", file=sys.stderr)
         sys.exit(1)
 
-
-def main():
-    os.system("clear")
+def check_necessary_files():
+    # Words Pool
     if not os.path.isfile("./words_pool.json"):
         os.system("touch words_pool.json")
+
+    # Speaking File
     if not os.path.isdir("speaking"):
         os.makedirs("speaking", exist_ok=False)
     if not os.path.isfile("speaking/problems.json"):
         with open("speaking/problems.json", 'w') as f:
             json.dump([], f)
+
+    # Setting File
     if not os.path.isfile(".setting"):
         with open(".setting", 'w') as f:
             json.dump({
             "practice_rate": 3,
                 }, f)
-    console.print("[bold dark_slate_gray3]Welcome to tofel practice program developed by Mars.[bold dark_slate_gray3]")
+
+    # Practice Records File
     if not os.path.isdir("practice_records"):
         os.makedirs("practice_records", exist_ok=False)
         hash_table = dict(); hash_table["enum"] = []
         with open("practice_records/record_hash.json", 'w') as f:
             json.dump(hash_table, f)
+
+    # Pharses File
+    if not os.path.isfile("./pharses_pool.json"):
+        os.system("touch ./pharses_pool.json")
+
+def main():
+    os.system("clear")
+    check_necessary_files()
+    console.print("[bold dark_slate_gray3]Welcome to tofel practice program developed by Mars.[bold dark_slate_gray3]")
     while 1:
         #console.rule("")
         initial_messages()
@@ -440,6 +569,27 @@ def main():
             else:
                 console.print(f"Error: {answer[0]} is an invalid key...")
             _ = input("Press Enter to continue...")
+        elif mode == _PHARSES_ADD:
+            pharse_meaning_pair = input("Type your input pharse and its corresponding meaning. The format should be [pharse;meaning]. For example, broden your horizon;拓展你的視野:")
+            pharse_meaning_pair = pharse_meaning_pair.split(";")
+            if len(pharse_meaning_pair) != 2:
+                _ = input("Your input is in the wrong format. Press Enter to continue ...")
+                os.system("clear")
+                continue
+            pharse, meaning = pharse_meaning_pair[0], pharse_meaning_pair[1]
+            add_pharses(pharse, meaning)
+            print(f"Successfully adding pharse: {pharse} and meaning {meaning} into pharse pools ^_^")
+            _ = input("Press Enter to continue...")
+        elif mode == _PHARSES_PRACTICE:
+            num_pharses_per_round = int(input("Type the number of pharses you want to practice per round. For example, 10:"))
+            pharses_practice(num_pharses_per_round)
+        elif mode == _CLEAR_PHARSES_POOL:
+            clear_pharses_pool()
+        elif mode == _REMOVE_PHARSES:
+            target_pharse = input("Type the target removed pharse. For example, \'broaden your horizon\':")
+            pharse_remove(target_pharse)
+        elif mode == _PRINT_PHARSES:
+            print_pharses()
         else:
             print(f"No such mode {mode}... _^_")
             _ = input("Press Enter to continue...")
